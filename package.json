@@ -1,0 +1,14 @@
+{
+  "name": "animal-ar",
+  "version": "1.0.0",
+  "description": "Web AR app — AI detects animals (figures/photos/QR) and shows life-size 3D models",
+  "private": true,
+  "scripts": {
+    "start": "python3 -m http.server 8080"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yoshikage/test-ar"
+  },
+  "license": "MIT"
+}
