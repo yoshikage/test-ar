@@ -196,6 +196,9 @@ body { background:#000; overflow:hidden; font-family:-apple-system,BlinkMacSyste
 
 <!-- MindAR v1.1.3 IIFE bundle served locally (Three.js bundled inside) -->
 <script src="lib/mind-ar.js"></script>
+<!-- Expose THREE globally so GLTFLoader can reference it -->
+<script>window.THREE = window.MINDAR.IMAGE.THREE;</script>
+<script src="lib/gltf-loader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
@@ -210,6 +213,9 @@ const TARGET_CONFIG = [
   { index: 1, key: 'hippo',  scale: 0.3 },
 ];
 const MIND_FILE = 'targets/animals.mind';
+// GLBファイルを models/<key>.glb に置くと自動で読み込まれます。
+// ファイルがない場合はコード内の手作り形状にフォールバックします。
+const MODEL_DIR = 'models/';
 
 // ── Animal DB ──────────────────────────────────────────────────────
 const DB = {
@@ -227,6 +233,23 @@ const ANIMALS_LIST = [
 
 // THREE is provided by the MindAR bundle (window.MINDAR.IMAGE.THREE); assigned in launchAR()
 let THREE = null;
+
+// ── GLB Model Cache ────────────────────────────────────────────────
+// key → THREE.Group (loaded) | null (file not found → use procedural fallback)
+const modelCache = {};
+
+async function resolveModel(key) {
+  if (key in modelCache) return modelCache[key];
+  return new Promise(resolve => {
+    const loader = new THREE.GLTFLoader();
+    loader.load(
+      `${MODEL_DIR}${key}.glb`,
+      gltf => { modelCache[key] = gltf.scene; resolve(gltf.scene); },
+      null,
+      () => { modelCache[key] = null; resolve(null); } // 404 → fallback
+    );
+  });
+}
 
 // ── App State ──────────────────────────────────────────────────────
 let mindarThree = null;
@@ -270,6 +293,10 @@ async function launchAR() {
     return;
   }
   THREE = window.MINDAR.IMAGE.THREE;
+
+  // GLBファイルを事前ロード（ない場合は null → 手作り形状にフォールバック）
+  setText('load-text', '3Dモデルを読み込み中...');
+  await Promise.all(TARGET_CONFIG.map(cfg => resolveModel(cfg.key)));
 
   await initMindAR();
 
@@ -332,7 +359,9 @@ async function initMindAR() {
     if (!DB[cfg.key]) continue;
 
     const anchor = mindarThree.addAnchor(cfg.index);
-    const group = buildAnimal(cfg.key);
+    // GLBキャッシュがあればそれを使い、なければ手作り形状にフォールバック
+    const cached = modelCache[cfg.key];
+    const group = cached ? cached.clone() : buildAnimal(cfg.key);
 
     group.scale.setScalar(cfg.scale ?? 0.3);
     group.position.y = 0.1; // カード面より少し上
