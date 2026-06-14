@@ -194,10 +194,8 @@ body { background:#000; overflow:hidden; font-family:-apple-system,BlinkMacSyste
 
 </div>
 
-<!-- Dependencies: MindAR bundles Three.js internally (window.THREE) -->
-<!-- Primary CDN: unpkg (Cloudflare). Sets __mindARFailed flag on network error. -->
-<script src="https://unpkg.com/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
-        onerror="window.__mindARFailed=true"></script>
+<!-- MindAR v1.1.3 IIFE bundle served locally (Three.js bundled inside) -->
+<script src="lib/mind-ar.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
@@ -226,6 +224,9 @@ const ANIMALS_LIST = [
   { key:'wombat', label:'ウォンバット', emoji:'🐨' },
   { key:'hippo',  label:'カバ',         emoji:'🦛' },
 ];
+
+// THREE is provided by the MindAR bundle (window.MINDAR.IMAGE.THREE); assigned in launchAR()
+let THREE = null;
 
 // ── App State ──────────────────────────────────────────────────────
 let mindarThree = null;
@@ -263,11 +264,12 @@ async function launchAR() {
   setText('hint-main', '動物写真カードにカメラを向けてください');
   setText('hint-sub', 'QRカードにも対応しています');
 
-  if (window.__mindARFailed || !window.MINDAR || !window.MINDAR.IMAGE) {
-    setText('load-text', 'ARライブラリの読み込みに失敗しました。ネットワークを確認してください。');
+  if (!window.MINDAR || !window.MINDAR.IMAGE) {
+    setText('load-text', 'ARライブラリの読み込みに失敗しました。ページを再読み込みしてください。');
     document.getElementById('loader-reload').style.display = '';
     return;
   }
+  THREE = window.MINDAR.IMAGE.THREE;
 
   await initMindAR();
 
