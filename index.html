@@ -19,7 +19,7 @@ body { background:#000; overflow:hidden; font-family:-apple-system,BlinkMacSyste
 }
 .landing-title { font-size:3rem; font-weight:900; letter-spacing:-2px; }
 .landing-title span { color:#4ade80; }
-.landing-sub { color:#94a3b8; font-size:0.95rem; margin:8px 0 40px; text-align:center; }
+.landing-sub { color:#94a3b8; font-size:0.95rem; margin:8px 0 40px; text-align:center; line-height:1.6; }
 .cards { display:flex; flex-direction:column; gap:14px; width:100%; max-width:380px; }
 .card {
   background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12);
@@ -36,19 +36,18 @@ body { background:#000; overflow:hidden; font-family:-apple-system,BlinkMacSyste
 /* ── AR Screen ── */
 #screen-ar { position:absolute; inset:0; display:none; }
 #screen-ar.on { display:block; }
-#video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
-#canvas-3d, #canvas-det { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
-#canvas-3d { z-index:2; }
-#canvas-det { z-index:3; }
+
+/* MindAR injects <video> + <canvas> here */
+#mindar-container { position:absolute; inset:0; width:100%; height:100%; overflow:hidden; }
 
 /* HUD */
-#hud { position:absolute; inset:0; z-index:4; pointer-events:none; }
+#hud { position:absolute; inset:0; z-index:10; pointer-events:none; }
 #topbar {
   position:absolute; top:0; left:0; right:0;
-  padding:env(safe-area-inset-top,20px) 16px 16px;
+  padding:16px;
+  padding-top:calc(env(safe-area-inset-top,0px) + 16px);
   background:linear-gradient(to bottom,rgba(0,0,0,.6),transparent);
   display:flex; align-items:center; justify-content:space-between;
-  padding-top:calc(env(safe-area-inset-top,0px) + 16px);
 }
 #btn-back {
   pointer-events:all; background:rgba(255,255,255,.15); border:none;
@@ -57,10 +56,9 @@ body { background:#000; overflow:hidden; font-family:-apple-system,BlinkMacSyste
 }
 #mode-chip { font-size:.75rem; color:#fff; background:rgba(0,0,0,.4); padding:6px 12px; border-radius:100px; backdrop-filter:blur(8px); }
 
-/* Viewfinder */
 #vf {
   position:absolute; top:50%; left:50%; transform:translate(-50%,-58%);
-  width:220px; height:220px; pointer-events:none;
+  width:220px; height:220px;
 }
 .corner {
   position:absolute; width:36px; height:36px;
@@ -83,11 +81,12 @@ body { background:#000; overflow:hidden; font-family:-apple-system,BlinkMacSyste
 #hint-sub { font-size:.75rem; color:rgba(255,255,255,.55); }
 
 #animal-card {
-  position:absolute; bottom:calc(env(safe-area-inset-bottom,0px) + 72px); left:50%; transform:translateX(-50%);
+  position:absolute; bottom:calc(env(safe-area-inset-bottom,0px) + 72px);
+  left:50%; transform:translateX(-50%);
   background:rgba(10,10,10,.8); backdrop-filter:blur(16px);
   border:1px solid rgba(255,255,255,.15); border-radius:20px;
   padding:14px 22px; min-width:190px; text-align:center; color:#fff;
-  opacity:0; transition:opacity .3s; pointer-events:none; z-index:5;
+  opacity:0; transition:opacity .3s; pointer-events:none; z-index:10;
 }
 #animal-card.show { opacity:1; }
 #ac-name { font-size:1.5rem; font-weight:800; }
@@ -95,9 +94,10 @@ body { background:#000; overflow:hidden; font-family:-apple-system,BlinkMacSyste
 #ac-size { display:inline-block; margin-top:8px; background:#4ade80; color:#000; font-size:.7rem; font-weight:700; padding:3px 10px; border-radius:100px; }
 
 #loader {
-  position:absolute; inset:0; background:rgba(0,0,0,.78);
+  position:absolute; inset:0;
+  background:rgba(0,0,0,.78);
   display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:14px; color:#fff; z-index:6;
+  gap:14px; color:#fff; z-index:20;
 }
 #loader.gone { display:none; }
 .spin { width:40px; height:40px; border:3px solid rgba(255,255,255,.2); border-top-color:#4ade80; border-radius:50%; animation:spin .8s linear infinite; }
@@ -107,7 +107,7 @@ body { background:#000; overflow:hidden; font-family:-apple-system,BlinkMacSyste
 /* ── Markers Screen ── */
 #screen-markers { position:absolute; inset:0; background:#f5f5f5; display:none; z-index:20; overflow-y:auto; }
 #screen-markers.on { display:block; }
-.mhdr { background:#111; color:#fff; padding:16px; display:flex; align-items:center; gap:12px; position:sticky; top:0; }
+.mhdr { background:#111; color:#fff; padding:16px; display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:1; }
 .mhdr button { background:none; border:none; color:#fff; font-size:1.2rem; cursor:pointer; }
 .mhdr h2 { font-size:1rem; font-weight:700; }
 .mgrid { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:16px; }
@@ -129,22 +129,15 @@ body { background:#000; overflow:hidden; font-family:-apple-system,BlinkMacSyste
 <!-- Landing -->
 <div id="screen-landing">
   <div class="landing-title">Animal <span>AR</span></div>
-  <p class="landing-sub">カメラで動物を写すと実物大3Dが現れます</p>
+  <p class="landing-sub">動物写真カードにカメラを向けると<br>実物大の3Dモデルが現れます</p>
   <div class="cards">
-    <div class="card highlight" onclick="launchAR('detect')">
+    <div class="card highlight" onclick="launchAR()">
       <div class="card-icon">📷</div>
       <div>
-        <div class="card-title">動物・写真・フィギュアを写す</div>
-        <div class="card-desc">AIがネコ・イヌ・ゾウ etc. を自動認識</div>
+        <div class="card-title">ARスタート</div>
+        <div class="card-desc">動物写真カードにカメラを向けてください<br>QRカードにも対応しています</div>
       </div>
-      <span class="chip">推奨</span>
-    </div>
-    <div class="card" onclick="launchAR('qr')">
-      <div class="card-icon">▣</div>
-      <div>
-        <div class="card-title">QRマーカーを写す</div>
-        <div class="card-desc">専用カードをかざすと3D表示</div>
-      </div>
+      <span class="chip">スタート</span>
     </div>
     <div class="card" onclick="openMarkers()">
       <div class="card-icon">🖨</div>
@@ -158,9 +151,9 @@ body { background:#000; overflow:hidden; font-family:-apple-system,BlinkMacSyste
 
 <!-- AR -->
 <div id="screen-ar">
-  <video id="video" autoplay playsinline muted></video>
-  <canvas id="canvas-det"></canvas>
-  <canvas id="canvas-3d"></canvas>
+  <!-- MindAR が <video> + <canvas> をここに注入する -->
+  <div id="mindar-container"></div>
+
   <div id="hud">
     <div id="topbar">
       <button id="btn-back" onclick="stopAR()">← 戻る</button>
@@ -172,11 +165,13 @@ body { background:#000; overflow:hidden; font-family:-apple-system,BlinkMacSyste
     </div>
     <div id="hint"><div id="hint-main"></div><div id="hint-sub"></div></div>
   </div>
+
   <div id="animal-card">
     <div id="ac-name"></div>
     <div id="ac-sci"></div>
     <span id="ac-size"></span>
   </div>
+
   <div id="loader"><div class="spin"></div><p id="load-text">準備中...</p></div>
 </div>
 
@@ -192,503 +187,48 @@ body { background:#000; overflow:hidden; font-family:-apple-system,BlinkMacSyste
 
 </div>
 
-<!-- Dependencies -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+<!-- Dependencies: MindAR bundles Three.js internally (window.THREE) -->
+<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 'use strict';
 
-// ── Animal DB ─────────────────────────────────────────────────────────
+// ── イベント主催者向け設定 ────────────────────────────────────────
+// index: MindARコンパイラにアップロードした順番（0始まり）
+// key  : 動物キー (cat/dog/horse/sheep/cow/elephant/bear/zebra/giraffe/rabbit)
+// scale: 3Dモデルの大きさ（A5印刷 約15cm幅を基準に調整、デフォルト0.3）
+const TARGET_CONFIG = [
+  { index: 0, key: 'cat',      scale: 0.3 },
+  { index: 1, key: 'dog',      scale: 0.3 },
+  { index: 2, key: 'horse',    scale: 0.3 },
+  { index: 3, key: 'sheep',    scale: 0.3 },
+  { index: 4, key: 'cow',      scale: 0.3 },
+  { index: 5, key: 'elephant', scale: 0.3 },
+  { index: 6, key: 'bear',     scale: 0.3 },
+  { index: 7, key: 'zebra',    scale: 0.3 },
+  { index: 8, key: 'giraffe',  scale: 0.3 },
+  { index: 9, key: 'rabbit',   scale: 0.3 },
+];
+const MIND_FILE = 'targets/animals.mind';
+
+// ── Animal DB ──────────────────────────────────────────────────────
 const DB = {
-  cat:      { ja:'ネコ',     sci:'Felis catus',              cm:25,  hex:0xe8b87a, emoji:'🐱' },
-  dog:      { ja:'イヌ',     sci:'Canis lupus familiaris',   cm:50,  hex:0xb5651d, emoji:'🐶' },
-  horse:    { ja:'ウマ',     sci:'Equus ferus caballus',     cm:160, hex:0x8b7355, emoji:'🐴' },
-  sheep:    { ja:'ヒツジ',   sci:'Ovis aries',               cm:70,  hex:0xf0f0f0, emoji:'🐑' },
-  cow:      { ja:'ウシ',     sci:'Bos taurus',               cm:140, hex:0xf5deb3, emoji:'🐄' },
-  elephant: { ja:'ゾウ',     sci:'Loxodonta africana',       cm:300, hex:0x808080, emoji:'🐘' },
-  bear:     { ja:'クマ',     sci:'Ursus arctos',             cm:150, hex:0x4a3728, emoji:'🐻' },
-  zebra:    { ja:'シマウマ', sci:'Equus quagga',             cm:140, hex:0x222222, emoji:'🦓' },
-  giraffe:  { ja:'キリン',   sci:'Giraffa camelopardalis',   cm:500, hex:0xe8c96a, emoji:'🦒' },
-  rabbit:   { ja:'ウサギ',   sci:'Oryctolagus cuniculus',    cm:20,  hex:0xfafafa, emoji:'🐰' },
+  cat:      { ja:'ネコ',     sci:'Felis catus',               cm:25,  hex:0xe8b87a, emoji:'🐱' },
+  dog:      { ja:'イヌ',     sci:'Canis lupus familiaris',    cm:50,  hex:0xb5651d, emoji:'🐶' },
+  horse:    { ja:'ウマ',     sci:'Equus ferus caballus',      cm:160, hex:0x8b7355, emoji:'🐴' },
+  sheep:    { ja:'ヒツジ',   sci:'Ovis aries',                cm:70,  hex:0xf0f0f0, emoji:'🐑' },
+  cow:      { ja:'ウシ',     sci:'Bos taurus',                cm:140, hex:0xf5deb3, emoji:'🐄' },
+  elephant: { ja:'ゾウ',     sci:'Loxodonta africana',        cm:300, hex:0x808080, emoji:'🐘' },
+  bear:     { ja:'クマ',     sci:'Ursus arctos',              cm:150, hex:0x4a3728, emoji:'🐻' },
+  zebra:    { ja:'シマウマ', sci:'Equus quagga',              cm:140, hex:0x222222, emoji:'🦓' },
+  giraffe:  { ja:'キリン',   sci:'Giraffa camelopardalis',    cm:500, hex:0xe8c96a, emoji:'🦒' },
+  rabbit:   { ja:'ウサギ',   sci:'Oryctolagus cuniculus',     cm:20,  hex:0xfafafa, emoji:'🐰' },
 };
 
-const COCO = { cat:'cat', dog:'dog', horse:'horse', sheep:'sheep', cow:'cow', elephant:'elephant', bear:'bear', zebra:'zebra', giraffe:'giraffe' };
-const QR_MAP = Object.fromEntries(Object.keys(DB).map(k => [`ANIMAL:${k.toUpperCase()}`, k]));
-
-// ── App State ──────────────────────────────────────────────────────────
-let mode = null, cocoModel = null, stream = null, raf = null;
-let renderer, scene, camera, mesh3d;
-let detected = null, detectedAt = 0, rotation = 0, frameN = 0;
-
-const $video    = document.getElementById('video');
-const $canvas3d = document.getElementById('canvas-3d');
-const $canvasDet= document.getElementById('canvas-det');
-const $vf       = document.getElementById('vf');
-const $card     = document.getElementById('animal-card');
-const $loader   = document.getElementById('loader');
-
-// ── Navigation ─────────────────────────────────────────────────────────
-function openMarkers() {
-  document.getElementById('screen-markers').classList.add('on');
-  buildMarkers();
-}
-function closeMarkers() {
-  document.getElementById('screen-markers').classList.remove('on');
-}
-
-async function launchAR(m) {
-  mode = m;
-  document.getElementById('screen-landing').style.display = 'none';
-  document.getElementById('screen-ar').classList.add('on');
-  $loader.classList.remove('gone');
-
-  setText('load-text', 'カメラを起動中...');
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode:'environment', width:{ideal:1280}, height:{ideal:720} }, audio:false
-    });
-    $video.srcObject = stream;
-    await $video.play();
-  } catch(e) {
-    alert('カメラを許可してください: ' + e.message);
-    stopAR(); return;
-  }
-
-  initThree();
-
-  if (m === 'detect') {
-    setText('load-text', 'AIモデルを読み込み中... (初回は数秒かかります)');
-    setText('mode-chip', '動物検出モード 🐾');
-    setText('hint-main', 'フィギュア・写真・実物をカメラに向けてください');
-    setText('hint-sub', '対応: ネコ イヌ ウマ ヒツジ ウシ ゾウ クマ シマウマ キリン');
-    if (!cocoModel) cocoModel = await cocoSsd.load();
-  } else {
-    setText('mode-chip', 'QRコードモード ▣');
-    setText('hint-main', 'QRマーカーカードをカメラに向けてください');
-    setText('hint-sub', '「QRカードを印刷」でカードを用意できます');
-  }
-
-  $loader.classList.add('gone');
-  frameN = 0;
-  loop();
-}
-
-function stopAR() {
-  if (raf) cancelAnimationFrame(raf);
-  stream?.getTracks().forEach(t => t.stop());
-  renderer?.dispose();
-  stream = raf = renderer = scene = camera = mesh3d = null;
-  detected = null;
-  $card.classList.remove('show');
-  $vf.classList.remove('hit');
-  document.getElementById('screen-ar').classList.remove('on');
-  document.getElementById('screen-landing').style.display = 'flex';
-}
-
-function setText(id, t) { document.getElementById(id).textContent = t; }
-
-// ── Three.js ───────────────────────────────────────────────────────────
-function initThree() {
-  const w = window.innerWidth, h = window.innerHeight;
-  $canvas3d.width = w * devicePixelRatio; $canvas3d.height = h * devicePixelRatio;
-  $canvas3d.style.width = w + 'px'; $canvas3d.style.height = h + 'px';
-
-  renderer = new THREE.WebGLRenderer({ canvas:$canvas3d, alpha:true, antialias:true });
-  renderer.setPixelRatio(devicePixelRatio);
-  renderer.setSize(w, h);
-
-  scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(55, w/h, 0.001, 500);
-  camera.position.set(0, 0, 4);
-
-  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-  const sun = new THREE.DirectionalLight(0xffffff, 0.9);
-  sun.position.set(3, 5, 4);
-  scene.add(sun);
-  scene.add(Object.assign(new THREE.DirectionalLight(0x88aaff, 0.3), {position:{x:-2,y:0,z:2}}));
-
-  window.onresize = () => {
-    if (!renderer) return;
-    const w = window.innerWidth, h = window.innerHeight;
-    renderer.setSize(w, h);
-    camera.aspect = w/h; camera.updateProjectionMatrix();
-    $canvasDet.width = w; $canvasDet.height = h;
-  };
-}
-
-// ── Main Loop ──────────────────────────────────────────────────────────
-async function loop() {
-  if (!renderer) return;
-  raf = requestAnimationFrame(loop);
-  frameN++;
-
-  if (mesh3d) { mesh3d.rotation.y = rotation += 0.007; }
-  renderer.render(scene, camera);
-
-  if ($video.readyState < 2 || frameN % 20 !== 0) return;
-
-  if (mode === 'detect') await detectAnimals();
-  else await detectQR();
-}
-
-// ── COCO-SSD Detection ─────────────────────────────────────────────────
-async function detectAnimals() {
-  if (!cocoModel) return;
-  let preds;
-  try { preds = await cocoModel.detect($video); } catch { return; }
-
-  const ctx = $canvasDet.getContext('2d');
-  const cw = $canvasDet.width = window.innerWidth;
-  const ch = $canvasDet.height = window.innerHeight;
-  ctx.clearRect(0, 0, cw, ch);
-
-  const sx = cw / $video.videoWidth, sy = ch / $video.videoHeight;
-  let best = null, bestScore = 0;
-
-  for (const p of preds) {
-    const key = COCO[p.class];
-    if (!key || p.score < 0.3) continue;
-    const [bx, by, bw, bh] = p.bbox;
-    const x=bx*sx, y=by*sy, w=bw*sx, h=bh*sy;
-
-    // Draw box
-    ctx.strokeStyle = 'rgba(74,222,128,.85)';
-    ctx.lineWidth = 2.5;
-    ctx.strokeRect(x, y, w, h);
-    // Label
-    const label = `${DB[key].emoji} ${DB[key].ja} ${Math.round(p.score*100)}%`;
-    ctx.fillStyle = '#4ade80';
-    ctx.fillRect(x, y-26, ctx.measureText(label).width + 12, 26);
-    ctx.fillStyle = '#000'; ctx.font = 'bold 13px system-ui';
-    ctx.fillText(label, x+6, y-7);
-
-    if (p.score > bestScore) { bestScore = p.score; best = key; }
-  }
-
-  if (best) showAnimal(best);
-  else clearAnimal();
-}
-
-// ── QR Detection ───────────────────────────────────────────────────────
-async function detectQR() {
-  const tmp = document.createElement('canvas');
-  tmp.width = $video.videoWidth; tmp.height = $video.videoHeight;
-  tmp.getContext('2d').drawImage($video, 0, 0);
-  const img = tmp.getContext('2d').getImageData(0, 0, tmp.width, tmp.height);
-  const code = jsQR(img.data, img.width, img.height, {inversionAttempts:'dontInvert'});
-
-  const ctx = $canvasDet.getContext('2d');
-  $canvasDet.width = window.innerWidth; $canvasDet.height = window.innerHeight;
-  ctx.clearRect(0, 0, $canvasDet.width, $canvasDet.height);
-
-  if (!code) { clearAnimal(); return; }
-
-  const key = QR_MAP[code.data.toUpperCase()];
-  if (!key) { clearAnimal(); return; }
-
-  // Draw QR outline
-  const sx = $canvasDet.width / $video.videoWidth, sy = $canvasDet.height / $video.videoHeight;
-  const pts = [code.location.topLeftCorner, code.location.topRightCorner,
-               code.location.bottomRightCorner, code.location.bottomLeftCorner];
-  ctx.beginPath();
-  ctx.moveTo(pts[0].x*sx, pts[0].y*sy);
-  pts.slice(1).forEach(p => ctx.lineTo(p.x*sx, p.y*sy));
-  ctx.closePath();
-  ctx.strokeStyle = '#4ade80'; ctx.lineWidth = 3; ctx.stroke();
-  ctx.fillStyle = 'rgba(74,222,128,.12)'; ctx.fill();
-
-  showAnimal(key);
-}
-
-// ── Animal Show/Hide ───────────────────────────────────────────────────
-function showAnimal(key) {
-  detectedAt = Date.now();
-  $vf.classList.add('hit');
-  if (key === detected) return;
-  detected = key;
-  spawnModel(key);
-  const d = DB[key];
-  setText('ac-name', `${d.emoji} ${d.ja}`);
-  setText('ac-sci', d.sci);
-  setText('ac-size', `実物大: ${d.cm}cm`);
-  $card.classList.add('show');
-}
-
-function clearAnimal() {
-  if (Date.now() - detectedAt > 2000) $vf.classList.remove('hit');
-  if (Date.now() - detectedAt > 3000) { $card.classList.remove('show'); detected = null; }
-}
-
-// ── 3D Model ───────────────────────────────────────────────────────────
-function spawnModel(key) {
-  if (mesh3d) { scene.remove(mesh3d); mesh3d = null; }
-  const grp = buildAnimal(key);
-  // Scale so animal fills ~1.6 units of screen height
-  // Real height in scene units (1 unit ≈ 25cm)
-  const d = DB[key];
-  const realUnits = d.cm / 25;
-  grp.scale.setScalar(1.6 / realUnits);
-
-  grp.position.y = -2;
-  scene.add(grp);
-  mesh3d = grp;
-  // Bounce in
-  let t = 0;
-  const bounce = setInterval(() => {
-    if (!mesh3d || mesh3d !== grp) { clearInterval(bounce); return; }
-    t = Math.min(t + 0.08, 1);
-    const ease = 1 - Math.pow(1-t,3);
-    grp.position.y = -0.8 + (-2+0.8) * (1-ease);
-    if (t >= 1) clearInterval(bounce);
-  }, 16);
-}
-
-// ── Geometry Helpers ───────────────────────────────────────────────────
-const mk = (geo, color, rough=0.72) => {
-  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({color, roughness:rough, metalness:0.05}));
-  m.castShadow = true; return m;
-};
-const sp = (rx,ry,rz,c,r) => Object.assign(mk(new THREE.SphereGeometry(1,16,12),c,r||.72), {scale:{x:rx,y:ry,z:rz}});
-const cy = (rt,rb,h,c) => mk(new THREE.CylinderGeometry(rt,rb,h,10),c);
-const cn = (r,h,c) => mk(new THREE.ConeGeometry(r,h,8),c);
-const bx = (sx,sy,sz,c) => mk(new THREE.BoxGeometry(sx,sy,sz),c);
-
-function place(obj, px,py,pz, rx=0,ry=0,rz=0) {
-  obj.position.set(px,py,pz);
-  obj.rotation.set(rx,ry,rz);
-  return obj;
-}
-
-function addTo(g, geo, c, px,py,pz, sx=1,sy=1,sz=1, rx=0,ry=0,rz=0) {
-  const m = mk(geo, c);
-  m.position.set(px,py,pz); m.scale.set(sx,sy,sz); m.rotation.set(rx,ry,rz);
-  g.add(m);
-}
-
-function S(g,c, sx,sy,sz, px,py,pz, rx=0,ry=0,rz=0, rough=.72) {
-  const m = mk(new THREE.SphereGeometry(1,16,12), c, rough);
-  m.scale.set(sx,sy,sz); m.position.set(px,py,pz); m.rotation.set(rx,ry,rz);
-  g.add(m); return m;
-}
-function C(g,c, rt,rb,h, px,py,pz, rx=0,ry=0,rz=0) {
-  const m = mk(new THREE.CylinderGeometry(rt,rb,h,10), c);
-  m.position.set(px,py,pz); m.rotation.set(rx,ry,rz); g.add(m);
-}
-function N(g,c, r,h, px,py,pz, rx=0,ry=0,rz=0) {
-  const m = mk(new THREE.ConeGeometry(r,h,8), c);
-  m.position.set(px,py,pz); m.rotation.set(rx,ry,rz); g.add(m);
-}
-function B(g,c, sx,sy,sz, px,py,pz, rx=0,ry=0,rz=0) {
-  const m = mk(new THREE.BoxGeometry(sx,sy,sz), c);
-  m.position.set(px,py,pz); m.rotation.set(rx,ry,rz); g.add(m);
-}
-
-const dim = c => new THREE.Color(c).multiplyScalar(.6).getHex();
-
-// ── Animal Builders ────────────────────────────────────────────────────
-function buildAnimal(key) {
-  const g = new THREE.Group();
-  const c = DB[key].hex;
-  switch(key) {
-    case 'cat':      makeCat(g,c); break;
-    case 'dog':      makeDog(g,c); break;
-    case 'horse':    makeHorse(g,c); break;
-    case 'sheep':    makeSheep(g,c); break;
-    case 'cow':      makeCow(g,c); break;
-    case 'elephant': makeElephant(g,c); break;
-    case 'bear':     makeBear(g,c); break;
-    case 'zebra':    makeZebra(g,c); break;
-    case 'giraffe':  makeGiraffe(g,c); break;
-    case 'rabbit':   makeRabbit(g,c); break;
-    default:         S(g,c,.7,.6,.7,0,0,0);
-  }
-  return g;
-}
-
-function makeCat(g,c) {
-  const d=dim(c);
-  S(g,c,.55,.45,.6,0,0,0);           // body
-  S(g,c,.37,.35,.37,0,.72,.1);       // head
-  N(g,d,.12,.28,-0.22,1.02,.05,-0.2,0,-0.3);  // ear L
-  N(g,d,.12,.28, 0.22,1.02,.05,-0.2,0, 0.3);  // ear R
-  N(g,0xffaaaa,.07,.18,-0.22,1.04,.08,-0.2,0,-0.3); // inner L
-  N(g,0xffaaaa,.07,.18, 0.22,1.04,.08,-0.2,0, 0.3); // inner R
-  S(g,0x111111,.06,.06,.04,-0.12,.78,.35);  // eye L
-  S(g,0x111111,.06,.06,.04, 0.12,.78,.35);  // eye R
-  S(g,0x55dd99,.04,.04,.03,-0.12,.78,.36);  // iris L
-  S(g,0x55dd99,.04,.04,.03, 0.12,.78,.36);  // iris R
-  S(g,0xffaaaa,.07,.05,.04,0,.67,.37);      // nose
-  C(g,c,.1,.12,.6,-0.25,-.75,.05); C(g,c,.1,.12,.6,0.25,-.75,.05);  // front legs
-  C(g,c,.1,.11,.55,-0.2,-.7,-.35); C(g,c,.1,.11,.55, 0.2,-.7,-.35); // back legs
-  C(g,d,.07,.1,.9,0,-.1,-.7, 0.55,0,.3);   // tail
-  B(g,0xffffff,.38,.008,.008,-0.34,.65,.36); B(g,0xffffff,.38,.008,.008,0.34,.65,.36); // whiskers
-}
-
-function makeDog(g,c) {
-  const d=dim(c);
-  S(g,c,.65,.5,.75,0,0,0);           // body
-  S(g,0xf5deb3,.4,.35,.5,0,-.05,.1); // belly
-  S(g,c,.44,.42,.45,0,.82,.15);      // head
-  S(g,0xf5deb3,.22,.18,.2,0,.68,.42); // snout
-  S(g,0x111111,.09,.07,.07,0,.73,.59); // nose
-  S(g,0x111111,.07,.07,.05,-.18,.9,.36); S(g,0x111111,.07,.07,.05,.18,.9,.36); // eyes
-  S(g,d,.22,.35,.1,-.42,.82,.05,0,0,.6); S(g,d,.22,.35,.1,.42,.82,.05,0,0,.6); // ears
-  C(g,c,.13,.15,.7,-.3,-.85,.2); C(g,c,.13,.15,.7,.3,-.85,.2);   // front legs
-  C(g,c,.12,.14,.65,-.27,-.82,-.35); C(g,c,.12,.14,.65,.27,-.82,-.35); // back legs
-  S(g,d,.15,.1,.18,-.3,-1.23,.22); S(g,d,.15,.1,.18,.3,-1.23,.22); // paws
-  C(g,d,.06,.09,.65,0,-.05,-.85,0.8,0,0); // tail
-}
-
-function makeHorse(g,c) {
-  const d=dim(c), mn=0x3d2b1f;
-  S(g,c,.9,.65,1.2,0,0,0);           // body
-  C(g,c,.28,.35,.85,0,.88,.55,-0.5,0,0); // neck
-  S(g,c,.28,.3,.48,0,1.45,.82);      // head
-  S(g,c,.2,.22,.28,0,1.32,1.1);      // snout
-  S(g,0x5a3a2a,.06,.04,.04,-.1,1.26,1.22); S(g,0x5a3a2a,.06,.04,.04,.1,1.26,1.22); // nostrils
-  S(g,0x111111,.07,.07,.05,-.26,1.52,.82); S(g,0x111111,.07,.07,.05,.26,1.52,.82); // eyes
-  N(g,d,.08,.25,-.16,1.75,.68,0,0,-.2); N(g,d,.08,.25,.16,1.75,.68,0,0,.2);  // ears
-  S(g,mn,.12,.4,.22,-.02,1.12,.45);  // mane
-  C(g,c,.12,.15,1.1,-.35,-1.05,.55); C(g,c,.12,.15,1.1,.35,-1.05,.55);   // legs front
-  C(g,c,.12,.15,1.1,-.35,-1.05,-.55); C(g,c,.12,.15,1.1,.35,-1.05,-.55); // legs back
-  C(g,0x222222,.14,.14,.12,-.35,-1.66,.55); C(g,0x222222,.14,.14,.12,.35,-1.66,.55);   // hooves
-  C(g,0x222222,.14,.14,.12,-.35,-1.66,-.55); C(g,0x222222,.14,.14,.12,.35,-1.66,-.55);
-  C(g,mn,.06,.14,.8,0,-.2,-1.25,0.6,0,0); // tail
-}
-
-function makeSheep(g,c) {
-  const fc=0x333333;
-  S(g,c,.85,.72,.9,0,0,0);
-  for (const [x,z] of [[.65,0],[-.65,0],[0,.65],[0,-.65]]) S(g,c,.55,.5,.55,x,.2,z);
-  S(g,c,.45,.45,.45,.5,.5,.5); S(g,c,.45,.45,.45,-.5,.5,.5);
-  S(g,fc,.3,.3,.35,0,.9,.55);   // head
-  S(g,0x666666,.18,.15,.15,0,.78,.76); // snout
-  S(g,0x222222,.04,.03,.03,-.07,.76,.89); S(g,0x222222,.04,.03,.03,.07,.76,.89); // nostrils
-  S(g,0xffff00,.07,.07,.05,-.15,.96,.72); S(g,0xffff00,.07,.07,.05,.15,.96,.72);  // eyes
-  S(g,0x111111,.04,.06,.03,-.15,.96,.74); S(g,0x111111,.04,.06,.03,.15,.96,.74);
-  S(g,fc,.16,.1,.22,-.33,.88,.45,0,0,.6); S(g,fc,.16,.1,.22,.33,.88,.45,0,0,.6); // ears
-  C(g,fc,.1,.12,.65,-.28,-.98,.2); C(g,fc,.1,.12,.65,.28,-.98,.2);
-  C(g,fc,.1,.12,.65,-.28,-.98,-.2); C(g,fc,.1,.12,.65,.28,-.98,-.2);
-  C(g,0x222222,.11,.11,.1,-.28,-1.38,.2); C(g,0x222222,.11,.11,.1,.28,-1.38,.2);
-  C(g,0x222222,.11,.11,.1,-.28,-1.38,-.2); C(g,0x222222,.11,.11,.1,.28,-1.38,-.2);
-}
-
-function makeCow(g,c) {
-  const sp2=0x222222;
-  S(g,c,1.0,.7,1.3,0,0,0);
-  S(g,sp2,.4,.35,.5,.5,.2,.3); S(g,sp2,.35,.3,.4,-.6,.15,-.2); // spots
-  S(g,0xffcccc,.35,.25,.3,0,-.7,.3); // udder
-  C(g,c,.3,.35,.5,0,.85,.65,-0.4,0,0); // neck
-  S(g,c,.38,.35,.45,0,1.26,.9);    // head
-  S(g,0xffccaa,.22,.18,.2,0,1.1,1.13); // snout
-  S(g,sp2,.06,.05,.04,-.1,1.07,1.28); S(g,sp2,.06,.05,.04,.1,1.07,1.28); // nostrils
-  S(g,sp2,.08,.08,.05,-.28,1.35,.98); S(g,sp2,.08,.08,.05,.28,1.35,.98); // eyes
-  C(g,0xf5deb3,.04,.06,.35,-.3,1.6,.88,0,-.3,-.6); C(g,0xf5deb3,.04,.06,.35,.3,1.6,.88,0,.3,-.6); // horns
-  S(g,c,.18,.1,.25,-.5,1.35,.88,0,0,.6); S(g,c,.18,.1,.25,.5,1.35,.88,0,0,.6); // ears
-  C(g,c,.14,.16,.85,-.38,-1.1,.55); C(g,c,.14,.16,.85,.38,-1.1,.55);
-  C(g,c,.14,.16,.85,-.38,-1.1,-.55); C(g,c,.14,.16,.85,.38,-1.1,-.55);
-  C(g,sp2,.15,.15,.12,-.38,-1.6,.55); C(g,sp2,.15,.15,.12,.38,-1.6,.55);
-  C(g,sp2,.15,.15,.12,-.38,-1.6,-.55); C(g,sp2,.15,.15,.12,.38,-1.6,-.55);
-}
-
-function makeElephant(g,c) {
-  const d=dim(c);
-  S(g,c,1.2,1.0,1.4,0,0,0);        // body
-  S(g,c,.8,.75,.8,0,1.3,.45);       // head
-  C(g,c,.14,.2,.6,0,.88,1.05);      // trunk upper
-  C(g,c,.12,.14,.5,0,.48,1.3,0.7,0,0); // trunk mid
-  S(g,c,.15,.12,.15,0,.28,1.55);    // trunk tip
-  S(g,d,.1,.8,.95,-1.12,1.2,.25); S(g,d,.1,.8,.95,1.12,1.2,.25); // big ears
-  C(g,0xfffacd,.06,.09,.7,-.3,.85,1.0,-0.2,0,-.3); // tusk L
-  C(g,0xfffacd,.06,.09,.7,.3,.85,1.0,-0.2,0,.3);   // tusk R
-  S(g,0x111111,.08,.08,.05,-.42,1.45,.8); S(g,0x111111,.08,.08,.05,.42,1.45,.8); // eyes
-  C(g,c,.25,.28,1.0,-.5,-1.2,.55); C(g,c,.25,.28,1.0,.5,-1.2,.55);   // legs
-  C(g,c,.25,.28,1.0,-.5,-1.2,-.55); C(g,c,.25,.28,1.0,.5,-1.2,-.55);
-  S(g,d,.28,.15,.32,-.5,-1.75,.55); S(g,d,.28,.15,.32,.5,-1.75,.55); // feet
-  S(g,d,.28,.15,.32,-.5,-1.75,-.55); S(g,d,.28,.15,.32,.5,-1.75,-.55);
-}
-
-function makeBear(g,c) {
-  const d=dim(c), cr=0xf5e6c8;
-  S(g,c,.85,.9,.9,0,0,0);
-  S(g,cr,.55,.6,.55,0,-.1,.25);     // belly
-  S(g,c,.58,.55,.58,0,1.12,.1);     // head
-  S(g,cr,.28,.22,.25,0,.95,.5);     // snout
-  S(g,0x111111,.1,.08,.07,0,1.02,.7); // nose
-  S(g,0x111111,.08,.08,.06,-.22,1.2,.45); S(g,0x111111,.08,.08,.06,.22,1.2,.45); // eyes
-  S(g,0xffffff,.03,.03,.02,-.2,1.22,.47); S(g,0xffffff,.03,.03,.02,.2,1.22,.47); // shine
-  S(g,c,.2,.2,.15,-.42,1.52,.04); S(g,c,.2,.2,.15,.42,1.52,.04);     // ears
-  S(g,d,.12,.12,.08,-.42,1.52,.1); S(g,d,.12,.12,.08,.42,1.52,.1);   // inner ears
-  S(g,c,.25,.6,.28,-1.0,.25,.1); S(g,c,.25,.6,.28,1.0,.25,.1);       // arms
-  S(g,d,.22,.15,.25,-1.0,-.15,.2); S(g,d,.22,.15,.25,1.0,-.15,.2);   // paws
-  S(g,c,.3,.65,.32,-.38,-1.02,0); S(g,c,.3,.65,.32,.38,-1.02,0);     // legs
-  S(g,d,.28,.18,.36,-.38,-1.42,.12); S(g,d,.28,.18,.36,.38,-1.42,.12); // feet
-}
-
-function makeZebra(g,c) {
-  const wh=0xfafafa;
-  S(g,c,.9,.65,1.1,0,0,0);
-  for (let i=0;i<5;i++) S(g,wh,.92,.16,.16,0,.2-i*.27,.72);  // body stripes
-  S(g,wh,.35,.25,.65,.6,.1,0); S(g,wh,.35,.25,.65,-.6,.1,0);  // side stripes
-  C(g,c,.22,.28,.8,0,.88,.52,-0.5,0,0); // neck
-  S(g,c,.3,.28,.42,0,1.42,.82);
-  S(g,wh,.22,.2,.22,0,1.28,1.08);
-  S(g,0x444444,.06,.05,.04,-.1,1.24,1.25); S(g,0x444444,.06,.05,.04,.1,1.24,1.25);
-  S(g,0x111111,.07,.07,.05,-.26,1.5,.88); S(g,0x111111,.07,.07,.05,.26,1.5,.88);
-  N(g,c,.07,.22,-.15,1.68,.72,0,0,-.15); N(g,c,.07,.22,.15,1.68,.72,0,0,.15);
-  C(g,c,.11,.14,1.0,-.35,-1.05,.5); C(g,c,.11,.14,1.0,.35,-1.05,.5);
-  C(g,c,.11,.14,1.0,-.35,-1.05,-.5); C(g,c,.11,.14,1.0,.35,-1.05,-.5);
-  for (const [px,pz] of [[-.35,.5],[.35,.5],[-.35,-.5],[.35,-.5]]) {
-    S(g,wh,.13,.08,.13,px,-.85,pz); S(g,wh,.13,.08,.13,px,-1.1,pz);
-  }
-  C(g,0x222222,.12,.12,.1,-.35,-1.62,.5); C(g,0x222222,.12,.12,.1,.35,-1.62,.5);
-  C(g,0x222222,.12,.12,.1,-.35,-1.62,-.5); C(g,0x222222,.12,.12,.1,.35,-1.62,-.5);
-}
-
-function makeGiraffe(g,c) {
-  const sp=0x8b4513;
-  S(g,c,.85,.65,1.0,0,0,0);
-  for (const [x,y,z] of [[.4,.3,.4],[-.5,.1,.3],[.2,-.1,-.4],[-.3,.4,-.3]]) S(g,sp,.25,.22,.25,x,y,z);
-  C(g,c,.2,.28,2.2,0,1.75,.2,-0.15,0,0); // long neck
-  for (let i=0;i<4;i++) S(g,sp,.12,.18,.12,(i%2===0?.12:-.12),.9+i*.45,.25);
-  S(g,c,.3,.28,.42,0,2.95,.38); // head
-  S(g,c,.2,.22,.25,0,2.78,.62);
-  S(g,sp,.05,.04,.04,-.08,2.73,.8); S(g,sp,.05,.04,.04,.08,2.73,.8);
-  S(g,0x111111,.07,.07,.05,-.24,3.0,.5); S(g,0x111111,.07,.07,.05,.24,3.0,.5);
-  C(g,sp,.04,.05,.3,-.13,3.22,.28); C(g,sp,.04,.05,.3,.13,3.22,.28); // ossicones
-  S(g,sp,.07,.07,.07,-.13,3.38,.28); S(g,sp,.07,.07,.07,.13,3.38,.28);
-  S(g,c,.12,.08,.2,-.35,3.08,.3,0,0,.5); S(g,c,.12,.08,.2,.35,3.08,.3,0,0,.5); // ears
-  C(g,c,.12,.15,1.5,-.38,-1.35,.5); C(g,c,.12,.15,1.5,.38,-1.35,.5);  // long legs
-  C(g,c,.12,.15,1.5,-.38,-1.35,-.5); C(g,c,.12,.15,1.5,.38,-1.35,-.5);
-  for (const [px,pz] of [[-.38,.5],[.38,.5],[-.38,-.5],[.38,-.5]]) {
-    S(g,sp,.13,.2,.13,px,-.8,pz); S(g,sp,.13,.2,.13,px,-1.15,pz);
-  }
-  C(g,0x222222,.13,.13,.12,-.38,-2.17,.5); C(g,0x222222,.13,.13,.12,.38,-2.17,.5);
-  C(g,0x222222,.13,.13,.12,-.38,-2.17,-.5); C(g,0x222222,.13,.13,.12,.38,-2.17,-.5);
-}
-
-function makeRabbit(g,c) {
-  const pk=0xffb6c1, d=dim(c);
-  S(g,c,.5,.65,.55,0,-.05,0);       // body
-  S(g,0xffffff,.22,.22,.22,0,-.3,-.52); // fluffy tail
-  S(g,c,.4,.38,.38,0,.9,.08);       // head
-  S(g,pk,.16,.12,.1,-.26,.85,.3); S(g,pk,.16,.12,.1,.26,.85,.3); // cheeks
-  S(g,pk,.06,.05,.04,0,.82,.38);    // nose
-  S(g,0xff5555,.08,.08,.06,-.18,.96,.32); S(g,0xff5555,.08,.08,.06,.18,.96,.32); // eyes
-  S(g,0x111111,.05,.05,.04,-.17,.96,.34); S(g,0x111111,.05,.05,.04,.17,.96,.34);
-  C(g,c,.1,.13,1.0,-.18,1.8,.05,0.1,0,-.15); C(g,c,.1,.13,1.0,.18,1.8,.05,0.1,0,.15); // long ears
-  C(g,pk,.05,.07,.8,-.18,1.8,.1,0.1,0,-.15); C(g,pk,.05,.07,.8,.18,1.8,.1,0.1,0,.15); // inner ear
-  S(g,c,.18,.35,.2,-.38,.2,.28); S(g,c,.18,.35,.2,.38,.2,.28); // front paws
-  S(g,d,.18,.12,.22,-.38,-.05,.35); S(g,d,.18,.12,.22,.38,-.05,.35);
-  S(g,c,.22,.45,.45,-.35,-.55,-.15); S(g,c,.22,.45,.45,.35,-.55,-.15); // hind legs
-  S(g,d,.2,.14,.42,-.35,-.82,.2); S(g,d,.2,.14,.42,.35,-.82,.2);
-  B(g,0x888888,.35,.008,.008,-.32,.82,.36); B(g,0x888888,.35,.008,.008,.32,.82,.36); // whiskers
-}
-
-// ── QR Marker Cards ────────────────────────────────────────────────────
+const QR_MAP = Object.fromEntries(
+  Object.keys(DB).map(k => [`ANIMAL:${k.toUpperCase()}`, k])
+);
 const ANIMALS_LIST = [
   {key:'cat',label:'ネコ',emoji:'🐱'},{key:'dog',label:'イヌ',emoji:'🐶'},
   {key:'rabbit',label:'ウサギ',emoji:'🐰'},{key:'bear',label:'クマ',emoji:'🐻'},
@@ -697,25 +237,609 @@ const ANIMALS_LIST = [
   {key:'sheep',label:'ヒツジ',emoji:'🐑'},{key:'zebra',label:'シマウマ',emoji:'🦓'},
 ];
 
+// ── App State ──────────────────────────────────────────────────────
+let mindarThree = null;
+let mindarActive = false;
+let qrOnlyMode = false;
+let qrScanInterval = null;
+let lastMindARDetect = 0;
+let visibleKey = null;
+let qrDetectedAt = 0;
+let qrOnlyVideoEl = null;
+let qrOnlyStream = null;
+const anchorGroups = {};  // key → { group, anchor }
+const QR_FALLBACK_DELAY = 2000; // ms: MindAR無反応後にQRスキャン開始
+
+const $vf   = document.getElementById('vf');
+const $card = document.getElementById('animal-card');
+const $loader = document.getElementById('loader');
+
+// ── Navigation ─────────────────────────────────────────────────────
+function openMarkers() {
+  document.getElementById('screen-markers').classList.add('on');
+  buildMarkers();
+}
+function closeMarkers() {
+  document.getElementById('screen-markers').classList.remove('on');
+}
+
+// ── AR Launch ──────────────────────────────────────────────────────
+async function launchAR() {
+  document.getElementById('screen-landing').style.display = 'none';
+  document.getElementById('screen-ar').classList.add('on');
+  $loader.classList.remove('gone');
+  setText('load-text', 'カメラと追跡を初期化中...');
+  setText('mode-chip', '画像追跡モード 🎯');
+  setText('hint-main', '動物写真カードにカメラを向けてください');
+  setText('hint-sub', 'QRカードにも対応しています');
+
+  await initMindAR();
+
+  $loader.classList.add('gone');
+}
+
+// ── MindAR Init ────────────────────────────────────────────────────
+async function initMindAR() {
+  // targets.mind が存在するか確認
+  let mindFileOk = false;
+  try {
+    const resp = await fetch(MIND_FILE, { method: 'HEAD' });
+    mindFileOk = resp.ok;
+  } catch (_) {
+    mindFileOk = false;
+  }
+
+  if (!mindFileOk) {
+    // graceful fallback: QRスキャンのみモード
+    qrOnlyMode = true;
+    setText('mode-chip', 'QRコードモード ▣');
+    setText('hint-main', 'QRマーカーカードにカメラを向けてください');
+    setText('hint-sub', '画像ターゲットファイル未設定 — QRモードで動作中');
+    await startQROnlyCamera();
+    return;
+  }
+
+  // MindARThree インスタンス生成
+  mindarThree = new window.MINDAR.IMAGE.MindARThree({
+    container: document.querySelector('#mindar-container'),
+    imageTargetSrc: MIND_FILE,
+    maxTrack: 1,
+    uiLoading: 'no',
+    uiScanning: 'no',
+    uiError: 'no',
+  });
+
+  const { renderer, scene, camera } = mindarThree;
+
+  // ライティング（MindARのsceneに追加）
+  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+  sun.position.set(3, 5, 4);
+  scene.add(sun);
+  const fill = new THREE.DirectionalLight(0x88aaff, 0.3);
+  fill.position.set(-2, 0, 2);
+  scene.add(fill);
+
+  // 全アニマルをanchorにpre-attach（addAnchor は start() より前に呼ぶ）
+  for (const cfg of TARGET_CONFIG) {
+    if (!DB[cfg.key]) continue;
+
+    const anchor = mindarThree.addAnchor(cfg.index);
+    const group = buildAnimal(cfg.key);
+
+    group.scale.setScalar(cfg.scale ?? 0.3);
+    group.position.y = 0.1; // カード面より少し上
+    group.visible = false;
+
+    anchor.group.add(group);
+    anchorGroups[cfg.key] = { group, anchor };
+
+    // クロージャ用にキャプチャ
+    const key = cfg.key;
+
+    anchor.onTargetFound = () => {
+      group.visible = true;
+      lastMindARDetect = Date.now();
+      stopQRFallback();
+      showAnimalCard(key);
+      $vf.classList.add('hit');
+      visibleKey = key;
+      // bounce-in
+      let t = 0;
+      const savedY = group.position.y;
+      group.position.y = savedY - 0.4;
+      const bounce = setInterval(() => {
+        t = Math.min(t + 0.08, 1);
+        const ease = 1 - Math.pow(1 - t, 3);
+        group.position.y = savedY - 0.4 * (1 - ease);
+        if (t >= 1) { group.position.y = savedY; clearInterval(bounce); }
+      }, 16);
+    };
+
+    anchor.onTargetLost = () => {
+      group.visible = false;
+      $vf.classList.remove('hit');
+      $card.classList.remove('show');
+      visibleKey = null;
+      scheduleQRFallback();
+    };
+  }
+
+  // MindAR起動（カメラ + 追跡開始）
+  try {
+    await mindarThree.start();
+  } catch (e) {
+    alert('カメラを許可してください: ' + e.message);
+    stopAR();
+    return;
+  }
+
+  mindarActive = true;
+
+  // アニメーションループ
+  renderer.setAnimationLoop(() => {
+    for (const { group } of Object.values(anchorGroups)) {
+      if (group.visible) group.rotation.y += 0.007;
+    }
+    renderer.render(scene, camera);
+  });
+
+  // QRフォールバック開始（MindAR検出中は一時停止される）
+  scheduleQRFallback();
+}
+
+// ── AR Stop ───────────────────────────────────────────────────────
+function stopAR() {
+  stopQRFallback();
+
+  if (mindarThree) {
+    mindarThree.renderer.setAnimationLoop(null);
+    mindarThree.stop();
+    mindarThree = null;
+  }
+
+  if (qrOnlyMode) {
+    stopQROnlyCamera();
+    qrOnlyMode = false;
+  }
+
+  mindarActive = false;
+  visibleKey = null;
+
+  for (const k of Object.keys(anchorGroups)) delete anchorGroups[k];
+
+  $card.classList.remove('show');
+  $vf.classList.remove('hit');
+
+  document.getElementById('screen-ar').classList.remove('on');
+  document.getElementById('screen-landing').style.display = 'flex';
+}
+
+// ── Animal Card ────────────────────────────────────────────────────
+function showAnimalCard(key) {
+  const d = DB[key];
+  setText('ac-name', `${d.emoji} ${d.ja}`);
+  setText('ac-sci', d.sci);
+  setText('ac-size', `実物大: ${d.cm}cm`);
+  $card.classList.add('show');
+}
+
+// ── QR Fallback ────────────────────────────────────────────────────
+function scheduleQRFallback() {
+  if (qrScanInterval || qrOnlyMode) return;
+  qrScanInterval = setInterval(runQRScan, 250);
+}
+
+function stopQRFallback() {
+  clearInterval(qrScanInterval);
+  qrScanInterval = null;
+}
+
+async function runQRScan() {
+  // MindARが最近検出していたら待機
+  if (Date.now() - lastMindARDetect < QR_FALLBACK_DELAY) return;
+
+  const videoEl = qrOnlyMode
+    ? qrOnlyVideoEl
+    : (mindarThree && mindarThree.video);
+
+  if (!videoEl || videoEl.readyState < 2) return;
+
+  const tmp = document.createElement('canvas');
+  tmp.width  = videoEl.videoWidth;
+  tmp.height = videoEl.videoHeight;
+  tmp.getContext('2d').drawImage(videoEl, 0, 0);
+  const img = tmp.getContext('2d').getImageData(0, 0, tmp.width, tmp.height);
+  const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+
+  if (!code) {
+    if (Date.now() - qrDetectedAt > 3000 && visibleKey) {
+      $vf.classList.remove('hit');
+      $card.classList.remove('show');
+      visibleKey = null;
+    }
+    return;
+  }
+
+  const key = QR_MAP[code.data.toUpperCase()];
+  if (!key) return;
+
+  qrDetectedAt = Date.now();
+
+  if (key !== visibleKey) {
+    visibleKey = key;
+    $vf.classList.add('hit');
+    showAnimalCard(key);
+  }
+}
+
+// ── QR-Only Camera (graceful fallback) ────────────────────────────
+async function startQROnlyCamera() {
+  qrOnlyVideoEl = document.createElement('video');
+  qrOnlyVideoEl.setAttribute('autoplay', '');
+  qrOnlyVideoEl.setAttribute('playsinline', '');
+  qrOnlyVideoEl.setAttribute('muted', '');
+  qrOnlyVideoEl.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;';
+  document.getElementById('mindar-container').appendChild(qrOnlyVideoEl);
+
+  try {
+    qrOnlyStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false,
+    });
+    qrOnlyVideoEl.srcObject = qrOnlyStream;
+    await qrOnlyVideoEl.play();
+  } catch (e) {
+    alert('カメラを許可してください: ' + e.message);
+    stopAR();
+    return;
+  }
+
+  scheduleQRFallback();
+}
+
+function stopQROnlyCamera() {
+  qrOnlyStream?.getTracks().forEach(t => t.stop());
+  qrOnlyVideoEl?.remove();
+  qrOnlyStream = null;
+  qrOnlyVideoEl = null;
+}
+
+// ── Utility ───────────────────────────────────────────────────────
+function setText(id, t) { document.getElementById(id).textContent = t; }
+
+// ── 3D Animal Builders ────────────────────────────────────────────
+function buildAnimal(key) {
+  const g = new THREE.Group();
+  const c = DB[key].hex;
+  switch (key) {
+    case 'cat':      makeCat(g, c);      break;
+    case 'dog':      makeDog(g, c);      break;
+    case 'horse':    makeHorse(g, c);    break;
+    case 'sheep':    makeSheep(g, c);    break;
+    case 'cow':      makeCow(g, c);      break;
+    case 'elephant': makeElephant(g, c); break;
+    case 'bear':     makeBear(g, c);     break;
+    case 'zebra':    makeZebra(g, c);    break;
+    case 'giraffe':  makeGiraffe(g, c);  break;
+    case 'rabbit':   makeRabbit(g, c);   break;
+    default: S(g, c, .7, .6, .7, 0, 0, 0);
+  }
+  return g;
+}
+
+// ── Geometry Helpers ──────────────────────────────────────────────
+const mk = (geo, color, rough = 0.72) => {
+  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: 0.05 }));
+  m.castShadow = true; return m;
+};
+function S(g, c, sx, sy, sz, px, py, pz, rx = 0, ry = 0, rz = 0, rough = .72) {
+  const m = mk(new THREE.SphereGeometry(1, 16, 12), c, rough);
+  m.scale.set(sx, sy, sz); m.position.set(px, py, pz); m.rotation.set(rx, ry, rz);
+  g.add(m); return m;
+}
+function C(g, c, rt, rb, h, px, py, pz, rx = 0, ry = 0, rz = 0) {
+  const m = mk(new THREE.CylinderGeometry(rt, rb, h, 10), c);
+  m.position.set(px, py, pz); m.rotation.set(rx, ry, rz); g.add(m);
+}
+function N(g, c, r, h, px, py, pz, rx = 0, ry = 0, rz = 0) {
+  const m = mk(new THREE.ConeGeometry(r, h, 8), c);
+  m.position.set(px, py, pz); m.rotation.set(rx, ry, rz); g.add(m);
+}
+function B(g, c, sx, sy, sz, px, py, pz, rx = 0, ry = 0, rz = 0) {
+  const m = mk(new THREE.BoxGeometry(sx, sy, sz), c);
+  m.position.set(px, py, pz); m.rotation.set(rx, ry, rz); g.add(m);
+}
+const dim = c => new THREE.Color(c).multiplyScalar(.6).getHex();
+
+// ── Cat ───────────────────────────────────────────────────────────
+function makeCat(g, c) {
+  const d = dim(c);
+  S(g, c, .55, .45, .6, 0, 0, 0);
+  S(g, c, .37, .35, .37, 0, .72, .1);
+  N(g, d, .12, .28, -.22, 1.02, .05, -.2, 0, -.3);
+  N(g, d, .12, .28, .22, 1.02, .05, -.2, 0, .3);
+  N(g, 0xffaaaa, .07, .18, -.22, 1.04, .08, -.2, 0, -.3);
+  N(g, 0xffaaaa, .07, .18, .22, 1.04, .08, -.2, 0, .3);
+  S(g, 0x111111, .06, .06, .04, -.12, .78, .35);
+  S(g, 0x111111, .06, .06, .04, .12, .78, .35);
+  S(g, 0x55dd99, .04, .04, .03, -.12, .78, .36);
+  S(g, 0x55dd99, .04, .04, .03, .12, .78, .36);
+  S(g, 0xffaaaa, .07, .05, .04, 0, .67, .37);
+  C(g, c, .1, .12, .6, -.25, -.75, .05);
+  C(g, c, .1, .12, .6, .25, -.75, .05);
+  C(g, c, .1, .11, .55, -.2, -.7, -.35);
+  C(g, c, .1, .11, .55, .2, -.7, -.35);
+  C(g, d, .07, .1, .9, 0, -.1, -.7, .55, 0, .3);
+  B(g, 0xffffff, .38, .008, .008, -.34, .65, .36);
+  B(g, 0xffffff, .38, .008, .008, .34, .65, .36);
+}
+
+// ── Dog ───────────────────────────────────────────────────────────
+function makeDog(g, c) {
+  const d = dim(c);
+  S(g, c, .65, .5, .75, 0, 0, 0);
+  S(g, 0xf5deb3, .4, .35, .5, 0, -.05, .1);
+  S(g, c, .44, .42, .45, 0, .82, .15);
+  S(g, 0xf5deb3, .22, .18, .2, 0, .68, .42);
+  S(g, 0x111111, .09, .07, .07, 0, .73, .59);
+  S(g, 0x111111, .07, .07, .05, -.18, .9, .36);
+  S(g, 0x111111, .07, .07, .05, .18, .9, .36);
+  S(g, d, .22, .35, .1, -.42, .82, .05, 0, 0, .6);
+  S(g, d, .22, .35, .1, .42, .82, .05, 0, 0, .6);
+  C(g, c, .13, .15, .7, -.3, -.85, .2);
+  C(g, c, .13, .15, .7, .3, -.85, .2);
+  C(g, c, .12, .14, .65, -.27, -.82, -.35);
+  C(g, c, .12, .14, .65, .27, -.82, -.35);
+  S(g, d, .15, .1, .18, -.3, -1.23, .22);
+  S(g, d, .15, .1, .18, .3, -1.23, .22);
+  C(g, d, .06, .09, .65, 0, -.05, -.85, .8, 0, 0);
+}
+
+// ── Horse ─────────────────────────────────────────────────────────
+function makeHorse(g, c) {
+  const d = dim(c), mn = 0x3d2b1f;
+  S(g, c, .9, .65, 1.2, 0, 0, 0);
+  C(g, c, .28, .35, .85, 0, .88, .55, -.5, 0, 0);
+  S(g, c, .28, .3, .48, 0, 1.45, .82);
+  S(g, c, .2, .22, .28, 0, 1.32, 1.1);
+  S(g, 0x5a3a2a, .06, .04, .04, -.1, 1.26, 1.22);
+  S(g, 0x5a3a2a, .06, .04, .04, .1, 1.26, 1.22);
+  S(g, 0x111111, .07, .07, .05, -.26, 1.52, .82);
+  S(g, 0x111111, .07, .07, .05, .26, 1.52, .82);
+  N(g, d, .08, .25, -.16, 1.75, .68, 0, 0, -.2);
+  N(g, d, .08, .25, .16, 1.75, .68, 0, 0, .2);
+  S(g, mn, .12, .4, .22, -.02, 1.12, .45);
+  C(g, c, .12, .15, 1.1, -.35, -1.05, .55);
+  C(g, c, .12, .15, 1.1, .35, -1.05, .55);
+  C(g, c, .12, .15, 1.1, -.35, -1.05, -.55);
+  C(g, c, .12, .15, 1.1, .35, -1.05, -.55);
+  C(g, 0x222222, .14, .14, .12, -.35, -1.66, .55);
+  C(g, 0x222222, .14, .14, .12, .35, -1.66, .55);
+  C(g, 0x222222, .14, .14, .12, -.35, -1.66, -.55);
+  C(g, 0x222222, .14, .14, .12, .35, -1.66, -.55);
+  C(g, mn, .06, .14, .8, 0, -.2, -1.25, .6, 0, 0);
+}
+
+// ── Sheep ─────────────────────────────────────────────────────────
+function makeSheep(g, c) {
+  const fc = 0x333333;
+  S(g, c, .85, .72, .9, 0, 0, 0);
+  for (const [x, z] of [[.65, 0], [-.65, 0], [0, .65], [0, -.65]]) S(g, c, .55, .5, .55, x, .2, z);
+  S(g, c, .45, .45, .45, .5, .5, .5);
+  S(g, c, .45, .45, .45, -.5, .5, .5);
+  S(g, fc, .3, .3, .35, 0, .9, .55);
+  S(g, 0x666666, .18, .15, .15, 0, .78, .76);
+  S(g, 0x222222, .04, .03, .03, -.07, .76, .89);
+  S(g, 0x222222, .04, .03, .03, .07, .76, .89);
+  S(g, 0xffff00, .07, .07, .05, -.15, .96, .72);
+  S(g, 0xffff00, .07, .07, .05, .15, .96, .72);
+  S(g, 0x111111, .04, .06, .03, -.15, .96, .74);
+  S(g, 0x111111, .04, .06, .03, .15, .96, .74);
+  S(g, fc, .16, .1, .22, -.33, .88, .45, 0, 0, .6);
+  S(g, fc, .16, .1, .22, .33, .88, .45, 0, 0, .6);
+  C(g, fc, .1, .12, .65, -.28, -.98, .2);
+  C(g, fc, .1, .12, .65, .28, -.98, .2);
+  C(g, fc, .1, .12, .65, -.28, -.98, -.2);
+  C(g, fc, .1, .12, .65, .28, -.98, -.2);
+  C(g, 0x222222, .11, .11, .1, -.28, -1.38, .2);
+  C(g, 0x222222, .11, .11, .1, .28, -1.38, .2);
+  C(g, 0x222222, .11, .11, .1, -.28, -1.38, -.2);
+  C(g, 0x222222, .11, .11, .1, .28, -1.38, -.2);
+}
+
+// ── Cow ───────────────────────────────────────────────────────────
+function makeCow(g, c) {
+  const sp = 0x222222;
+  S(g, c, 1.0, .7, 1.3, 0, 0, 0);
+  S(g, sp, .4, .35, .5, .5, .2, .3);
+  S(g, sp, .35, .3, .4, -.6, .15, -.2);
+  S(g, 0xffcccc, .35, .25, .3, 0, -.7, .3);
+  C(g, c, .3, .35, .5, 0, .85, .65, -.4, 0, 0);
+  S(g, c, .38, .35, .45, 0, 1.26, .9);
+  S(g, 0xffccaa, .22, .18, .2, 0, 1.1, 1.13);
+  S(g, sp, .06, .05, .04, -.1, 1.07, 1.28);
+  S(g, sp, .06, .05, .04, .1, 1.07, 1.28);
+  S(g, sp, .08, .08, .05, -.28, 1.35, .98);
+  S(g, sp, .08, .08, .05, .28, 1.35, .98);
+  C(g, 0xf5deb3, .04, .06, .35, -.3, 1.6, .88, 0, -.3, -.6);
+  C(g, 0xf5deb3, .04, .06, .35, .3, 1.6, .88, 0, .3, -.6);
+  S(g, c, .18, .1, .25, -.5, 1.35, .88, 0, 0, .6);
+  S(g, c, .18, .1, .25, .5, 1.35, .88, 0, 0, .6);
+  C(g, c, .14, .16, .85, -.38, -1.1, .55);
+  C(g, c, .14, .16, .85, .38, -1.1, .55);
+  C(g, c, .14, .16, .85, -.38, -1.1, -.55);
+  C(g, c, .14, .16, .85, .38, -1.1, -.55);
+  C(g, sp, .15, .15, .12, -.38, -1.6, .55);
+  C(g, sp, .15, .15, .12, .38, -1.6, .55);
+  C(g, sp, .15, .15, .12, -.38, -1.6, -.55);
+  C(g, sp, .15, .15, .12, .38, -1.6, -.55);
+}
+
+// ── Elephant ──────────────────────────────────────────────────────
+function makeElephant(g, c) {
+  const d = dim(c);
+  S(g, c, 1.2, 1.0, 1.4, 0, 0, 0);
+  S(g, c, .8, .75, .8, 0, 1.3, .45);
+  C(g, c, .14, .2, .6, 0, .88, 1.05);
+  C(g, c, .12, .14, .5, 0, .48, 1.3, .7, 0, 0);
+  S(g, c, .15, .12, .15, 0, .28, 1.55);
+  S(g, d, .1, .8, .95, -1.12, 1.2, .25);
+  S(g, d, .1, .8, .95, 1.12, 1.2, .25);
+  C(g, 0xfffacd, .06, .09, .7, -.3, .85, 1.0, -.2, 0, -.3);
+  C(g, 0xfffacd, .06, .09, .7, .3, .85, 1.0, -.2, 0, .3);
+  S(g, 0x111111, .08, .08, .05, -.42, 1.45, .8);
+  S(g, 0x111111, .08, .08, .05, .42, 1.45, .8);
+  C(g, c, .25, .28, 1.0, -.5, -1.2, .55);
+  C(g, c, .25, .28, 1.0, .5, -1.2, .55);
+  C(g, c, .25, .28, 1.0, -.5, -1.2, -.55);
+  C(g, c, .25, .28, 1.0, .5, -1.2, -.55);
+  S(g, d, .28, .15, .32, -.5, -1.75, .55);
+  S(g, d, .28, .15, .32, .5, -1.75, .55);
+  S(g, d, .28, .15, .32, -.5, -1.75, -.55);
+  S(g, d, .28, .15, .32, .5, -1.75, -.55);
+}
+
+// ── Bear ──────────────────────────────────────────────────────────
+function makeBear(g, c) {
+  const d = dim(c), cr = 0xf5e6c8;
+  S(g, c, .85, .9, .9, 0, 0, 0);
+  S(g, cr, .55, .6, .55, 0, -.1, .25);
+  S(g, c, .58, .55, .58, 0, 1.12, .1);
+  S(g, cr, .28, .22, .25, 0, .95, .5);
+  S(g, 0x111111, .1, .08, .07, 0, 1.02, .7);
+  S(g, 0x111111, .08, .08, .06, -.22, 1.2, .45);
+  S(g, 0x111111, .08, .08, .06, .22, 1.2, .45);
+  S(g, 0xffffff, .03, .03, .02, -.2, 1.22, .47);
+  S(g, 0xffffff, .03, .03, .02, .2, 1.22, .47);
+  S(g, c, .2, .2, .15, -.42, 1.52, .04);
+  S(g, c, .2, .2, .15, .42, 1.52, .04);
+  S(g, d, .12, .12, .08, -.42, 1.52, .1);
+  S(g, d, .12, .12, .08, .42, 1.52, .1);
+  S(g, c, .25, .6, .28, -1.0, .25, .1);
+  S(g, c, .25, .6, .28, 1.0, .25, .1);
+  S(g, d, .22, .15, .25, -1.0, -.15, .2);
+  S(g, d, .22, .15, .25, 1.0, -.15, .2);
+  S(g, c, .3, .65, .32, -.38, -1.02, 0);
+  S(g, c, .3, .65, .32, .38, -1.02, 0);
+  S(g, d, .28, .18, .36, -.38, -1.42, .12);
+  S(g, d, .28, .18, .36, .38, -1.42, .12);
+}
+
+// ── Zebra ─────────────────────────────────────────────────────────
+function makeZebra(g, c) {
+  const wh = 0xfafafa;
+  S(g, c, .9, .65, 1.1, 0, 0, 0);
+  for (let i = 0; i < 5; i++) S(g, wh, .92, .16, .16, 0, .2 - i * .27, .72);
+  S(g, wh, .35, .25, .65, .6, .1, 0);
+  S(g, wh, .35, .25, .65, -.6, .1, 0);
+  C(g, c, .22, .28, .8, 0, .88, .52, -.5, 0, 0);
+  S(g, c, .3, .28, .42, 0, 1.42, .82);
+  S(g, wh, .22, .2, .22, 0, 1.28, 1.08);
+  S(g, 0x444444, .06, .05, .04, -.1, 1.24, 1.25);
+  S(g, 0x444444, .06, .05, .04, .1, 1.24, 1.25);
+  S(g, 0x111111, .07, .07, .05, -.26, 1.5, .88);
+  S(g, 0x111111, .07, .07, .05, .26, 1.5, .88);
+  N(g, c, .07, .22, -.15, 1.68, .72, 0, 0, -.15);
+  N(g, c, .07, .22, .15, 1.68, .72, 0, 0, .15);
+  C(g, c, .11, .14, 1.0, -.35, -1.05, .5);
+  C(g, c, .11, .14, 1.0, .35, -1.05, .5);
+  C(g, c, .11, .14, 1.0, -.35, -1.05, -.5);
+  C(g, c, .11, .14, 1.0, .35, -1.05, -.5);
+  for (const [px, pz] of [[-.35, .5], [.35, .5], [-.35, -.5], [.35, -.5]]) {
+    S(g, wh, .13, .08, .13, px, -.85, pz);
+    S(g, wh, .13, .08, .13, px, -1.1, pz);
+  }
+  C(g, 0x222222, .12, .12, .1, -.35, -1.62, .5);
+  C(g, 0x222222, .12, .12, .1, .35, -1.62, .5);
+  C(g, 0x222222, .12, .12, .1, -.35, -1.62, -.5);
+  C(g, 0x222222, .12, .12, .1, .35, -1.62, -.5);
+}
+
+// ── Giraffe ───────────────────────────────────────────────────────
+function makeGiraffe(g, c) {
+  const sp = 0x8b4513;
+  S(g, c, .85, .65, 1.0, 0, 0, 0);
+  for (const [x, y, z] of [[.4, .3, .4], [-.5, .1, .3], [.2, -.1, -.4], [-.3, .4, -.3]]) S(g, sp, .25, .22, .25, x, y, z);
+  C(g, c, .2, .28, 2.2, 0, 1.75, .2, -.15, 0, 0);
+  for (let i = 0; i < 4; i++) S(g, sp, .12, .18, .12, (i % 2 === 0 ? .12 : -.12), .9 + i * .45, .25);
+  S(g, c, .3, .28, .42, 0, 2.95, .38);
+  S(g, c, .2, .22, .25, 0, 2.78, .62);
+  S(g, sp, .05, .04, .04, -.08, 2.73, .8);
+  S(g, sp, .05, .04, .04, .08, 2.73, .8);
+  S(g, 0x111111, .07, .07, .05, -.24, 3.0, .5);
+  S(g, 0x111111, .07, .07, .05, .24, 3.0, .5);
+  C(g, sp, .04, .05, .3, -.13, 3.22, .28);
+  C(g, sp, .04, .05, .3, .13, 3.22, .28);
+  S(g, sp, .07, .07, .07, -.13, 3.38, .28);
+  S(g, sp, .07, .07, .07, .13, 3.38, .28);
+  S(g, c, .12, .08, .2, -.35, 3.08, .3, 0, 0, .5);
+  S(g, c, .12, .08, .2, .35, 3.08, .3, 0, 0, .5);
+  C(g, c, .12, .15, 1.5, -.38, -1.35, .5);
+  C(g, c, .12, .15, 1.5, .38, -1.35, .5);
+  C(g, c, .12, .15, 1.5, -.38, -1.35, -.5);
+  C(g, c, .12, .15, 1.5, .38, -1.35, -.5);
+  for (const [px, pz] of [[-.38, .5], [.38, .5], [-.38, -.5], [.38, -.5]]) {
+    S(g, sp, .13, .2, .13, px, -.8, pz);
+    S(g, sp, .13, .2, .13, px, -1.15, pz);
+  }
+  C(g, 0x222222, .13, .13, .12, -.38, -2.17, .5);
+  C(g, 0x222222, .13, .13, .12, .38, -2.17, .5);
+  C(g, 0x222222, .13, .13, .12, -.38, -2.17, -.5);
+  C(g, 0x222222, .13, .13, .12, .38, -2.17, -.5);
+}
+
+// ── Rabbit ────────────────────────────────────────────────────────
+function makeRabbit(g, c) {
+  const pk = 0xffb6c1, d = dim(c);
+  S(g, c, .5, .65, .55, 0, -.05, 0);
+  S(g, 0xffffff, .22, .22, .22, 0, -.3, -.52);
+  S(g, c, .4, .38, .38, 0, .9, .08);
+  S(g, pk, .16, .12, .1, -.26, .85, .3);
+  S(g, pk, .16, .12, .1, .26, .85, .3);
+  S(g, pk, .06, .05, .04, 0, .82, .38);
+  S(g, 0xff5555, .08, .08, .06, -.18, .96, .32);
+  S(g, 0xff5555, .08, .08, .06, .18, .96, .32);
+  S(g, 0x111111, .05, .05, .04, -.17, .96, .34);
+  S(g, 0x111111, .05, .05, .04, .17, .96, .34);
+  C(g, c, .1, .13, 1.0, -.18, 1.8, .05, .1, 0, -.15);
+  C(g, c, .1, .13, 1.0, .18, 1.8, .05, .1, 0, .15);
+  C(g, pk, .05, .07, .8, -.18, 1.8, .1, .1, 0, -.15);
+  C(g, pk, .05, .07, .8, .18, 1.8, .1, .1, 0, .15);
+  S(g, c, .18, .35, .2, -.38, .2, .28);
+  S(g, c, .18, .35, .2, .38, .2, .28);
+  S(g, d, .18, .12, .22, -.38, -.05, .35);
+  S(g, d, .18, .12, .22, .38, -.05, .35);
+  S(g, c, .22, .45, .45, -.35, -.55, -.15);
+  S(g, c, .22, .45, .45, .35, -.55, -.15);
+  S(g, d, .2, .14, .42, -.35, -.82, .2);
+  S(g, d, .2, .14, .42, .35, -.82, .2);
+  B(g, 0x888888, .35, .008, .008, -.32, .82, .36);
+  B(g, 0x888888, .35, .008, .008, .32, .82, .36);
+}
+
+// ── QR Marker Cards ───────────────────────────────────────────────
 function buildMarkers() {
   const grid = document.getElementById('mgrid');
-  if (grid.children.length > 0) return; // already built
+  if (grid.children.length > 0) return;
   for (const a of ANIMALS_LIST) {
     const card = document.createElement('div');
     card.className = 'mcard';
     const emojiDiv = document.createElement('div');
-    emojiDiv.className = 'mcard-emoji'; emojiDiv.textContent = a.emoji;
+    emojiDiv.className = 'mcard-emoji';
+    emojiDiv.textContent = a.emoji;
     const qrDiv = document.createElement('div');
-    qrDiv.style.margin = '6px auto'; qrDiv.style.maxWidth = '120px';
+    qrDiv.style.cssText = 'margin:6px auto;max-width:120px;';
     const nameDiv = document.createElement('div');
-    nameDiv.className = 'mcard-name'; nameDiv.textContent = a.label;
+    nameDiv.className = 'mcard-name';
+    nameDiv.textContent = a.label;
     card.append(emojiDiv, qrDiv, nameDiv);
     grid.appendChild(card);
     new QRCode(qrDiv, {
       text: `ANIMAL:${a.key.toUpperCase()}`,
       width: 120, height: 120,
-      colorDark:'#000000', colorLight:'#ffffff',
-      correctLevel: QRCode.CorrectLevel.M
+      colorDark: '#000000', colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M,
     });
   }
 }
