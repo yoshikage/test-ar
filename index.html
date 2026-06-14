@@ -102,12 +102,13 @@ body { background:#000; overflow:hidden; font-family:-apple-system,BlinkMacSyste
 #loader.gone { display:none; }
 .spin { width:40px; height:40px; border:3px solid rgba(255,255,255,.2); border-top-color:#4ade80; border-radius:50%; animation:spin .8s linear infinite; }
 @keyframes spin { to{transform:rotate(360deg)} }
-#loader-cancel {
+#loader-cancel, #loader-reload {
   margin-top:8px; background:none; border:1px solid rgba(255,255,255,.3);
   color:rgba(255,255,255,.6); font-size:.8rem; padding:7px 24px;
   border-radius:100px; cursor:pointer;
 }
-#loader-cancel:active { background:rgba(255,255,255,.1); }
+#loader-cancel:active, #loader-reload:active { background:rgba(255,255,255,.1); }
+#loader-reload { display:none; border-color:rgba(74,222,128,.5); color:#4ade80; }
 #load-text { font-size:.88rem; color:rgba(255,255,255,.7); }
 
 /* ── Markers Screen ── */
@@ -178,7 +179,7 @@ body { background:#000; overflow:hidden; font-family:-apple-system,BlinkMacSyste
     <span id="ac-size"></span>
   </div>
 
-  <div id="loader"><div class="spin"></div><p id="load-text">準備中...</p><button id="loader-cancel" onclick="stopAR()">キャンセル</button></div>
+  <div id="loader"><div class="spin"></div><p id="load-text">準備中...</p><button id="loader-cancel" onclick="stopAR()">キャンセル</button><button id="loader-reload" onclick="location.reload()">ページを再読み込み</button></div>
 </div>
 
 <!-- Markers -->
@@ -194,7 +195,9 @@ body { background:#000; overflow:hidden; font-family:-apple-system,BlinkMacSyste
 </div>
 
 <!-- Dependencies: MindAR bundles Three.js internally (window.THREE) -->
-<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"></script>
+<!-- Primary CDN: unpkg (Cloudflare). Sets __mindARFailed flag on network error. -->
+<script src="https://unpkg.com/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+        onerror="window.__mindARFailed=true"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
@@ -260,8 +263,9 @@ async function launchAR() {
   setText('hint-main', '動物写真カードにカメラを向けてください');
   setText('hint-sub', 'QRカードにも対応しています');
 
-  if (!window.MINDAR || !window.MINDAR.IMAGE) {
-    setText('load-text', 'ライブラリの読み込みに失敗しました。ページを再読み込みしてください。');
+  if (window.__mindARFailed || !window.MINDAR || !window.MINDAR.IMAGE) {
+    setText('load-text', 'ARライブラリの読み込みに失敗しました。ネットワークを確認してください。');
+    document.getElementById('loader-reload').style.display = '';
     return;
   }
 
