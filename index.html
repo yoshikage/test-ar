@@ -102,6 +102,12 @@ body { background:#000; overflow:hidden; font-family:-apple-system,BlinkMacSyste
 #loader.gone { display:none; }
 .spin { width:40px; height:40px; border:3px solid rgba(255,255,255,.2); border-top-color:#4ade80; border-radius:50%; animation:spin .8s linear infinite; }
 @keyframes spin { to{transform:rotate(360deg)} }
+#loader-cancel {
+  margin-top:8px; background:none; border:1px solid rgba(255,255,255,.3);
+  color:rgba(255,255,255,.6); font-size:.8rem; padding:7px 24px;
+  border-radius:100px; cursor:pointer;
+}
+#loader-cancel:active { background:rgba(255,255,255,.1); }
 #load-text { font-size:.88rem; color:rgba(255,255,255,.7); }
 
 /* ── Markers Screen ── */
@@ -172,7 +178,7 @@ body { background:#000; overflow:hidden; font-family:-apple-system,BlinkMacSyste
     <span id="ac-size"></span>
   </div>
 
-  <div id="loader"><div class="spin"></div><p id="load-text">準備中...</p></div>
+  <div id="loader"><div class="spin"></div><p id="load-text">準備中...</p><button id="loader-cancel" onclick="stopAR()">キャンセル</button></div>
 </div>
 
 <!-- Markers -->
@@ -254,6 +260,11 @@ async function launchAR() {
   setText('hint-main', '動物写真カードにカメラを向けてください');
   setText('hint-sub', 'QRカードにも対応しています');
 
+  if (!window.MINDAR || !window.MINDAR.IMAGE) {
+    setText('load-text', 'ライブラリの読み込みに失敗しました。ページを再読み込みしてください。');
+    return;
+  }
+
   await initMindAR();
 
   $loader.classList.add('gone');
@@ -262,6 +273,7 @@ async function launchAR() {
 // ── MindAR Init ────────────────────────────────────────────────────
 async function initMindAR() {
   // targets.mind が存在するか確認
+  setText('load-text', '画像ターゲットを確認中...');
   let mindFileOk = false;
   try {
     const resp = await fetch(MIND_FILE, { method: 'HEAD' });
@@ -281,14 +293,22 @@ async function initMindAR() {
   }
 
   // MindARThree インスタンス生成
-  mindarThree = new window.MINDAR.IMAGE.MindARThree({
-    container: document.querySelector('#mindar-container'),
-    imageTargetSrc: MIND_FILE,
-    maxTrack: 1,
-    uiLoading: 'no',
-    uiScanning: 'no',
-    uiError: 'no',
-  });
+  setText('load-text', 'トラッキングエンジンを準備中...');
+  let instance;
+  try {
+    instance = new window.MINDAR.IMAGE.MindARThree({
+      container: document.querySelector('#mindar-container'),
+      imageTargetSrc: MIND_FILE,
+      maxTrack: 1,
+      uiLoading: 'no',
+      uiScanning: 'no',
+      uiError: 'no',
+    });
+  } catch (e) {
+    setText('load-text', 'エンジンの初期化に失敗しました。キャンセルして再試行してください。');
+    return; // cancel button lets user go back
+  }
+  mindarThree = instance;
 
   const { renderer, scene, camera } = mindarThree;
 
@@ -347,12 +367,20 @@ async function initMindAR() {
   }
 
   // MindAR起動（カメラ + 追跡開始）
+  setText('load-text', 'カメラを起動中...');
   try {
-    await mindarThree.start();
+    const timeout = new Promise((_, rej) =>
+      setTimeout(() => rej(new Error('timeout')), 30000)
+    );
+    await Promise.race([mindarThree.start(), timeout]);
   } catch (e) {
-    alert('カメラを許可してください: ' + e.message);
-    stopAR();
-    return;
+    if (e.message === 'timeout') {
+      setText('load-text', 'カメラの起動がタイムアウトしました。キャンセルして再試行してください。');
+    } else {
+      setText('load-text', 'カメラを許可できませんでした。キャンセルして再試行してください。');
+    }
+    mindarThree = null;
+    return; // cancel button lets user go back
   }
 
   mindarActive = true;
@@ -374,8 +402,10 @@ function stopAR() {
   stopQRFallback();
 
   if (mindarThree) {
-    mindarThree.renderer.setAnimationLoop(null);
-    mindarThree.stop();
+    try {
+      mindarThree.renderer.setAnimationLoop(null);
+      mindarThree.stop();
+    } catch (_) {}
     mindarThree = null;
   }
 
@@ -391,6 +421,7 @@ function stopAR() {
 
   $card.classList.remove('show');
   $vf.classList.remove('hit');
+  $loader.classList.add('gone');
 
   document.getElementById('screen-ar').classList.remove('on');
   document.getElementById('screen-landing').style.display = 'flex';
